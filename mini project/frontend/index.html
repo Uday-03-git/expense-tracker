@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0b0b0b;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 50%;
+            max-width: 600px;
+            text-align: center;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+        }
+
+        .form-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        .expense-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .expense-report {
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #444;
+        }
+
+        td {
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Expense Tracker Container -->
+    <div id="expense-tracker" class="container hidden">
+        <h1>Expense Tracker</h1>
+        <button onclick="logoutUser()">Logout</button>
+
+        <!-- Expense Entry Form -->
+        <div class="expense-form">
+            <h2>Enter Expense</h2>
+            <input type="text" id="expense-description" placeholder="Expense Description" required>
+            <input type="number" id="expense-amount" placeholder="Amount" required>
+            <select id="expense-category">
+                <option value="food">Food</option>
+                <option value="transport">Transport</option>
+                <option value="utilities">Utilities</option>
+                <option value="entertainment">Entertainment</option>
+                <option value="others">Others</option>
+            </select>
+            <input type="date" id="expense-date" required> <!-- Date Field -->
+            <button onclick="addExpense()">Add Expense</button>
+            <button onclick="viewReport()">View Expense Report</button>
+        </div>
+
+        <!-- Expense Report -->
+        <div class="expense-report" id="report-section" class="hidden">
+            <h2>Expense Report</h2>
+            <!-- Total Expenses Section -->
+            <p>Total Expenses: <span id="total-expenses">0</span></p>
+
+            <table id="expense-table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Category</th>
+                        <th>Date</th> <!-- Added Date Header -->
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Report rows will be added here -->
+                </tbody>
+            </table>
+            <button onclick="downloadCSV()">Download CSV Report</button>
+        </div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form" class="form-container">
+        <h1>Expense Tracker</h1>
+        <input type="email" id="login-email" placeholder="Email" required>
+        <input type="password" id="login-password" placeholder="Password" required>
+        <button onclick="loginUser()">Login</button>
+        <p>Don't have an account? <a href="#" onclick="showSignup()">Sign Up</a></p>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="signup-form" class="form-container hidden">
+        <input type="email" id="signup-email" placeholder="Email" required>
+        <input type="password" id="signup-password" placeholder="Password" required>
+        <button onclick="signupUser()">Sign Up</button>
+        <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+    </div>
+
+    <div id="error-message" class="error"></div>
+
+    <script>
+        const backendURL = 'http://localhost:5003/api'; // Ensure backend is running here
+        let expenses = []; // Store expense data
+
+        // Show the login form
+        function showLogin() {
+            document.getElementById('signup-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('error-message').textContent = ''; // Clear error messages
+        }
+
+        // Show the sign-up form
+        function showSignup() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('signup-form').classList.remove('hidden');
+            document.getElementById('error-message').textContent = ''; // Clear error messages
+        }
+
+        // Login user
+        function loginUser() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const errorMessage = document.getElementById('error-message');
+
+            errorMessage.textContent = ''; // Clear previous error message
+
+            if (!email || !password) {
+                errorMessage.textContent = 'Please enter both email and password.';
+                return;
+            }
+
+            fetch(`${backendURL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Login failed. Please try again.');
+                    });
+                }
+                return response.json(); // Successful response
+            })
+            .then(data => {
+                if (data.message === 'Login successful') {
+                    alert('Login successful!');
+                    document.getElementById('login-form').classList.add('hidden');
+                    document.getElementById('expense-tracker').classList.remove('hidden');
+                } else {
+                    throw new Error('Unexpected response from server: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorMessage.textContent = error.message;
+            });
+        }
+
+        // Sign-up user
+        function signupUser() {
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value.trim();
+            const errorMessage = document.getElementById('error-message');
+
+            errorMessage.textContent = ''; // Clear previous error message
+
+            if (!email || !password) {
+                errorMessage.textContent = 'Please fill out all fields.';
+                return;
+            }
+
+            fetch(`${backendURL}/signup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Sign-Up failed. Please try again.');
+                    });
+                }
+                return response.json(); // Successful response
+            })
+            .then(data => {
+                if (data.message === 'User created successfully') {
+                    alert('Sign-Up successful!');
+                    showLogin();
+                } else {
+                    throw new Error('Unexpected response from server: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorMessage.textContent = error.message;
+            });
+        }
+
+        // Logout user
+        function logoutUser() {
+            document.getElementById('expense-tracker').classList.add('hidden');
+            showLogin(); // Go back to the login form
+        }
+
+        // Add expense to the backend
+        function addExpense() {
+            const description = document.getElementById('expense-description').value.trim();
+            const amount = parseFloat(document.getElementById('expense-amount').value.trim());
+            const category = document.getElementById('expense-category').value;
+            const date = document.getElementById('expense-date').value;
+
+            if (!description || isNaN(amount) || !date) {
+                alert('Please fill out all fields.');
+                return;
+            }
+
+            const expense = { description, amount, category, date };
+
+            // Save expense to the backend
+            fetch(`${backendURL}/expenses`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(expense),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error saving expense.');
+                }
+                alert('Expense added successfully!');
+                document.getElementById('expense-description').value = '';
+                document.getElementById('expense-amount').value = '';
+                document.getElementById('expense-category').value = 'food';
+                document.getElementById('expense-date').value = '';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to save expense.');
+            });
+        }
+
+        // View Expense Report and show the data
+        function viewReport() {
+            const reportSection = document.getElementById('report-section');
+            reportSection.classList.remove('hidden'); // Show report section
+
+            fetch(`${backendURL}/expenses`)
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('expense-table').getElementsByTagName('tbody')[0];
+                    table.innerHTML = ''; // Clear previous data
+
+                    let totalAmount = 0; // To calculate total expenses
+
+                    data.forEach(expense => {
+                        const row = table.insertRow();
+                        row.insertCell(0).textContent = expense.description;
+                        row.insertCell(1).textContent = expense.amount;
+                        row.insertCell(2).textContent = expense.category;
+                        row.insertCell(3).textContent = new Date(expense.date).toLocaleDateString();
+
+                        totalAmount += expense.amount;
+                    });
+
+                    // Display the total expenses
+                    document.getElementById('total-expenses').textContent = totalAmount.toFixed(2);
+                })
+                .catch(error => {
+                    console.error('Error fetching expenses:', error);
+                    alert('Failed to fetch expenses.');
+                });
+        }
+
+        // Download the report in CSV format
+        function downloadCSV() {
+            fetch(`${backendURL}/expenses`)
+                .then(response => response.json())
+                .then(data => {
+                    let csvContent = 'Description,Amount,Category,Date\n'; // Header
+
+                    data.forEach(expense => {
+                        let rowData = `${expense.description},${expense.amount},${expense.category},${new Date(expense.date).toLocaleDateString()}`;
+                        csvContent += rowData + '\n';
+                    });
+
+                    // Trigger file download
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'expense_report.csv';
+                    link.click();
+                })
+                .catch(error => {
+                    console.error('Error downloading CSV:', error);
+                    alert('Failed to download CSV.');
+                });
+        }
+    </script>
+</body>
+</html>
